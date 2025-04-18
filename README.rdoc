@@ -1,0 +1,123 @@
+= zenspider-bandit
+
+home :: https://github.com/seattlerb/bandit
+rdoc :: https://docs.seattlerb.org/bandit
+
+== DESCRIPTION:
+
+Bandit is a dynamic firewall inspired by fail2ban but with the goal of
+being much simpler and easier to maintain and extend.
+
+Out of the box it comes with support for a sqlite database and using
+ipset for maintaining the banlist (which would be hooked into your
+firewall like iptables).
+
+== FEATURES/PROBLEMS:
+
+* Simple! Clean! ~400 LOC.
+* Easy to understand and extend!
+* Super efficient! About 1s CPU per hour and ~9mb of memory on my system.
+* Support for sqlite database to maintain ban data.
+* Support for ipset to maintain actual bans.
+* Instructions provided for hooking into iptables and systemd.
+
+== SYNOPSIS:
+
+Load or define your jails:
+
+    # ingress.rb:
+    Bandit.load_jail :sshd
+    Bandit.add_jail(:my_jail, /(?<content>BAN .*)/, /BAN #{HOST_IP}/)
+
+You can see my ingress.rb in this repository. Read through jails for
+examples of how to define your own jails or to customize regexps to
+your liking.
+
+Then, you can manually test with:
+
+    % tail -F /var/log/relevant.log* | bandit -v -t ingress ./ingress.rb
+    % bandit -t report
+
+This will run ingress through all the relevant logs without actually
+firewalling the IPs or using the regular database. Then you can run a
+report to see what would be banned.
+
+(tho this will probably be set up in a service for your system. See below.)
+
+== SERVICE:
+
+Once you've decided that bandit is a fit for your needs, you'll want
+to run it all the time. You'll do this by making it a service on your
+system.
+
+How you activate and use bandit as a service depends on your operating
+system and how services are configured. For systemd (many (most?)
+linux systems), you'd create the following file:
+
+# /usr/lib/systemd/system/bandit.service
+
+    [Unit]
+    Description=Bandit Service
+    After=network.target iptables.service firewalld.service ip6tables.service ipset.service nftables.service
+    PartOf=firewalld.service
+
+    [Service]
+    Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    WorkingDirectory=/path/to/bandit
+    ExecStart=/bin/sh -c 'tail -c0 -F /var/log/mail.log /var/log/auth.log | ruby ./ingress.rb'
+    LogLevelMax=info
+
+    [Install]
+    WantedBy=multi-user.target
+
+and then run:
+
+    % systemctl enable bandit.service
+
+== FIREWALL:
+
+The ingress script above will use +ipset+ to configure the bans. By
+itself, this does nothing. You must plug this into your actual
+firewall configuration.
+
+I would recommend running this as a service _without_ having it
+attached to your firewall until you've sanity checked that it is
+working as you desire.
+
+Once you've vetted it for a few days, you can add it to your firewall.
+For iptables, you'd run:
+
+    iptables -I INPUT -m set --match-set bandit src -j DROP
+
+== REQUIREMENTS:
+
+* sqlite3 gem
+
+== INSTALL:
+
+* [sudo] gem install bandit
+
+== LICENSE:
+
+(The MIT License)
+
+Copyright (c) Ryan Davis, seattle.rb
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
