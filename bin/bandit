@@ -1,0 +1,15 @@
+#!/usr/bin/env -S ruby -w
+
+require_relative "../lib/bandit"
+
+def bye(msg) = abort "#{msg}\nUsage: #$0 [allow IP|ban IP|unban IP|update|dump]"
+
+cmds = Bandit.commands
+cmd = "cmd_#{ARGV.shift}"
+
+bye "Unknown command #{cmd}" unless cmds.include? cmd
+bye "Wrong arity for #{cmd}" unless ARGV.size == Bandit.instance_method(cmd).arity
+
+bd = Bandit.new
+bd.store = Bandit::Store::SQLiteDB.new
+bd.send(cmd, *ARGV)
