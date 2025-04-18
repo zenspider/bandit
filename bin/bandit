@@ -1,0 +1,25 @@
+#!/usr/bin/env -S ruby -ws
+
+$v ||= false # verbose, log to standard out
+$t ||= false # test mode, use test.db
+
+require_relative "../lib/bandit"
+
+def bye(msg) = abort "#{msg}\nUsage: #$0 [-v] [allow IP|ban IP [jail]|unban IP|rm IP]|ingress path|report"
+
+cmds = Bandit.commands
+cmd = "cmd_#{ARGV.shift}"
+
+bye "Unknown command #{cmd}" unless cmds.include? cmd
+
+arity = Bandit.instance_method(cmd).parameters.count { |t, _| t == :req }
+bye "Wrong arity for #{cmd} (need #{arity})" unless ARGV.size >= arity
+
+store_opts = { path: "test.db" } if $t
+store_opts ||= {} # for ruby 3.1 compatibility (debian version, ugh)
+
+bd = Bandit.new
+bd.logger = Logger.new($stderr, progname: "bandit") if $v
+bd.store  = Bandit::Store::SQLiteDB.new bd.logger, **store_opts
+bd.fw     = Bandit::FW::IpSet.new bd.logger unless $t
+bd.send(cmd, *ARGV)
