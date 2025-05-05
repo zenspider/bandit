@@ -2,6 +2,9 @@
 
 $v ||= false # verbose, log locally
 
+ENV["GEM_HOME"] = "tmp/isolate"
+Gem.paths = ENV
+
 require_relative "../lib/bandit"
 
 def bye(msg) = abort "#{msg}\nUsage: #$0 [allow IP|ban IP [jail]|unban IP|rm IP|update|dump]"
