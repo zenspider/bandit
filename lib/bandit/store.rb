@@ -78,7 +78,7 @@ class Bandit
                     datetime("now", "localtime"))
 
           ON CONFLICT DO UPDATE SET
-            unban_at = datetime("now", "localtime", format("+%d hours", power(2, count))),
+            unban_at = datetime("now", "localtime", format("+%d hours", power(2, min(count, 15)))),
             count = count + 1,
             updated_at = datetime("now", "localtime")
             WHERE allowed != 1
