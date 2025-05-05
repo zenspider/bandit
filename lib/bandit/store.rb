@@ -81,7 +81,7 @@ class Bandit
             unban_at = datetime("now", format("+%d hours", power(2, min(count, 15))), "localtime"),
             count = count + 1,
             updated_at = datetime("now", "localtime")
-            WHERE allowed != 1
+            WHERE allowed != 1 AND julianday("now", "localtime") - julianday(updated_at) > 1
 
           RETURNING count, unban_at
         SQL
