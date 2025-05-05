@@ -32,18 +32,23 @@ class Bandit
     end
 
     class Logger < Abstract
-      def allow(ip) = log "STORE %s %s", __method__.upcase, ip
-      def ban(ip)   = log "STORE %s %s", __method__.upcase, ip
-      def unban(ip) = log "STORE %s %s", __method__.upcase, ip
-      def expired   = (log "STORE %s"  , __method__.upcase; [])
-      def purge     = log "STORE %s"   , __method__.upcase
-      def dump      = log "STORE %s"   , __method__.upcase
+      attr_accessor :verbose
+      def initialize verbose
+        self.verbose = verbose
+      end
+      def allow(ip) = (verbose and log "STORE %s %s", __method__.upcase, ip)
+      def ban(ip)   = (verbose and log "STORE %s %s", __method__.upcase, ip)
+      def unban(ip) = (verbose and log "STORE %s %s", __method__.upcase, ip)
+      def expired   = (verbose and (log "STORE %s"  , __method__.upcase; []))
+      def purge     = (verbose and log "STORE %s"   , __method__.upcase)
+      def dump      = (verbose and log "STORE %s"   , __method__.upcase)
     end
 
     require "sqlite3"
     class SQLiteDB < Logger
       attr_accessor :db
-      def initialize
+      def initialize verbose = $v
+        super
         self.db = SQLite3::Database.new "bandit.db"
         db.busy_timeout = 1_500 # ms
         db.results_as_hash = true
@@ -88,7 +93,7 @@ class Bandit
 
         return unless ban
 
-        log "STORE BAN %s count=%d until=%s", ip, *ban.values
+        verbose and log "STORE BAN %s count=%d until=%s", ip, *ban.values
         ban
       end
 
@@ -102,7 +107,7 @@ class Bandit
 
         return unless ban
 
-        log "STORE UNBAN %s", ip
+        verbose and log "STORE UNBAN %s", ip
       end
 
       def expired

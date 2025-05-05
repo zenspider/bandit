@@ -9,8 +9,12 @@ class Bandit
     end
 
     class Logger < Abstract
-      def ban(ip)   = puts "%s FW BAN %s"   % [Time.now, ip]
-      def unban(ip) = puts "%s FW UNBAN %s" % [Time.now, ip]
+      attr_accessor :verbose
+      def initialize verbose
+        self.verbose = verbose
+      end
+      def ban(ip)   = (verbose and log "FW BAN %s", ip)
+      def unban(ip) = (verbose and log "FW UNBAN %s", ip)
     end
   end
 end

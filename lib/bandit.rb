@@ -21,9 +21,9 @@ class Bandit
 
   def self.cmd(name) = alias_method "cmd_#{name}", name
 
-  def initialize
-    self.fw    = FW::Logger.new
-    self.store = Store::Logger.new
+  def initialize verbose = $v
+    self.fw      = FW::Logger.new verbose
+    self.store   = Store::Logger.new verbose
   end
 
   cmd def allow ip
