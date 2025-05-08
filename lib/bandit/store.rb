@@ -55,7 +55,7 @@ class Bandit
             count      INT NOT NULL DEFAULT 0,
             unban_at   TEXT         DEFAULT NULL,
             updated_at TEXT         DEFAULT NULL,
-            created_at TEXT         DEFAULT (datetime('now'))
+            created_at TEXT         DEFAULT (datetime("now"))
           ) STRICT;
 
           CREATE INDEX IF NOT EXISTS bans_ips ON bans (ip);
@@ -74,11 +74,11 @@ class Bandit
           INSERT INTO bans (ip, count, unban_at, updated_at)
             VALUES (?,
                     1,
-                    datetime("now", "localtime", format("+%d hours", 1)),
+                    datetime("now", format("+%d hours", 1), "localtime"),
                     datetime("now", "localtime"))
 
           ON CONFLICT DO UPDATE SET
-            unban_at = datetime("now", "localtime", format("+%d hours", power(2, min(count, 15)))),
+            unban_at = datetime("now", format("+%d hours", power(2, min(count, 15))), "localtime"),
             count = count + 1,
             updated_at = datetime("now", "localtime")
             WHERE allowed != 1
@@ -109,7 +109,8 @@ class Bandit
         db.execute(<<~SQL).flat_map(&:values)
           SELECT ip FROM bans
           WHERE NOT allowed
-            AND unixepoch(unban_at, "localtime") < unixepoch("now", "localtime")
+            AND unban_at
+            AND julianday(unban_at, "localtime") < julianday("now", "localtime")
         SQL
       end
 
@@ -118,7 +119,7 @@ class Bandit
         db.execute(<<~SQL, stale.to_s).flat_map(&:values)
           DELETE FROM bans
           WHERE NOT allowed
-            AND unixepoch(updated_at, "localtime") < unixepoch(?, "localtime")
+            AND julianday(updated_at) < julianday(?, "localtime")
           RETURNING *
         SQL
       end
