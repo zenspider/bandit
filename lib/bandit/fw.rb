@@ -4,17 +4,19 @@ class Bandit
     class Abstract
       def ban(ip)   = raise NotImplementedError, "#{__method__} not implemented"
       def unban(ip) = raise NotImplementedError, "#{__method__} not implemented"
-
-      def log(fmt, *args) = puts "%s #{fmt}" % [Time.now, *args]
     end
 
     class Logger < Abstract
-      attr_accessor :verbose
-      def initialize verbose
-        self.verbose = verbose
+      attr_accessor :logger
+      def initialize logger
+        self.logger = logger
       end
-      def ban(ip)   = (verbose and log "FW BAN %s", ip)
-      def unban(ip) = (verbose and log "FW UNBAN %s", ip)
+      def log(fmt, *args) = logger.info "FW #{fmt}" % [*args]
+      def ban(ip)         = log "BAN %s", ip
+      def unban(ip)       = log "UNBAN %s", ip
+      def start(ips)      = log "START BAN %d IPS", ips.size
+    end
+      end
     end
   end
 end

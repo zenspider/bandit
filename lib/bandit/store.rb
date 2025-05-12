@@ -27,27 +27,26 @@ class Bandit
       def expired   = raise NotImplementedError, "#{__method__} not implemented"
       def purge     = raise NotImplementedError, "#{__method__} not implemented"
       def dump      = raise NotImplementedError, "#{__method__} not implemented"
-
-      def log(fmt, *args) = puts "%s #{fmt}" % [Time.now, *args]
     end
 
     class Logger < Abstract
-      attr_accessor :verbose
-      def initialize verbose
-        self.verbose = verbose
+      attr_accessor :logger
+      def initialize logger
+        self.logger = logger
       end
-      def allow(ip) = (verbose and log "STORE %s %s", __method__.upcase, ip)
-      def ban(ip)   = (verbose and log "STORE %s %s", __method__.upcase, ip)
-      def unban(ip) = (verbose and log "STORE %s %s", __method__.upcase, ip)
-      def expired   = (verbose and (log "STORE %s"  , __method__.upcase; []))
-      def purge     = (verbose and log "STORE %s"   , __method__.upcase)
-      def dump      = (verbose and log "STORE %s"   , __method__.upcase)
+      def log(fmt, *args) = logger.info "DB #{fmt}" % [*args]
+      def allow(ip) = log "%s %s", __method__.upcase, ip
+      def ban(ip)   = log "%s %s", __method__.upcase, ip
+      def unban(ip) = log "%s %s", __method__.upcase, ip
+      def expired   = (log "%s"  , __method__.upcase; [])
+      def purge     = log "%s"   , __method__.upcase
+      def dump      = log "%s"   , __method__.upcase
     end
 
     require "sqlite3"
     class SQLiteDB < Logger
       attr_accessor :db
-      def initialize verbose = $v
+      def initialize logger
         super
         self.db = SQLite3::Database.new "bandit.db"
         db.busy_timeout = 1_500 # ms
@@ -93,7 +92,7 @@ class Bandit
 
         return unless ban
 
-        verbose and log "STORE BAN %s count=%d until=%s", ip, *ban.values
+        log "BAN %s count=%d until=%s", ip, *ban.values
         ban
       end
 
@@ -107,7 +106,7 @@ class Bandit
 
         return unless ban
 
-        verbose and log "STORE UNBAN %s", ip
+        log "UNBAN %s", ip
       end
 
       def expired

@@ -1,6 +1,8 @@
 require_relative "bandit/time_exts"
 require_relative "bandit/store"
 require_relative "bandit/fw"
+require "syslog"
+require "syslog/logger"
 
 class Bandit
   VERSION = "1.0.0"
@@ -11,6 +13,7 @@ class Bandit
 
   attr_accessor :fw
   attr_accessor :store
+  attr_accessor :logger
 
   def self.commands
     public_instance_methods
@@ -21,9 +24,12 @@ class Bandit
 
   def self.cmd(name) = alias_method "cmd_#{name}", name
 
-  def initialize verbose = $v
-    self.fw      = FW::Logger.new verbose
-    self.store   = Store::Logger.new verbose
+  def initialize logger = Syslog::Logger.new("bandit")
+    self.logger  = logger
+    self.fw      = FW::Logger.new logger
+    self.store   = Store::Logger.new logger
+
+    logger.info "starting bandit #{VERSION}"
   end
 
   cmd def allow ip

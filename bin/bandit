@@ -1,4 +1,6 @@
-#!/usr/bin/env -S ruby -w
+#!/usr/bin/env -S ruby -ws
+
+$v ||= false # verbose, log locally
 
 ENV["GEM_HOME"] = "tmp/isolate"
 Gem.paths = ENV
@@ -14,5 +16,7 @@ bye "Unknown command #{cmd}" unless cmds.include? cmd
 bye "Wrong arity for #{cmd}" unless ARGV.size == Bandit.instance_method(cmd).arity
 
 bd = Bandit.new
-bd.store = Bandit::Store::SQLiteDB.new
+bd.logger = Logger.new($stderr, progname: "bandit") if $v
+bd.store = Bandit::Store::SQLiteDB.new bd.logger
+bd.fw     = Bandit::FW::IpSet.new bd.logger
 bd.send(cmd, *ARGV)
