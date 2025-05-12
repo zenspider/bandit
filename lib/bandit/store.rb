@@ -48,7 +48,7 @@ class Bandit
       attr_accessor :db
       def initialize logger
         super
-        self.db = SQLite3::Database.new "bandit.db"
+        self.db = SQLite3::Database.new "bandit.db", strict: true
         db.busy_timeout = 1_500 # ms
         db.results_as_hash = true
 
@@ -58,8 +58,8 @@ class Bandit
             allowed    INT NOT NULL DEFAULT FALSE,
             count      INT NOT NULL DEFAULT 0,
             unban_at   TEXT         DEFAULT NULL,
-            updated_at TEXT         DEFAULT NULL,
-            created_at TEXT         DEFAULT (datetime("now"))
+            updated_at TEXT         DEFAULT (datetime('now', 'localtime')),
+            created_at TEXT         DEFAULT (datetime('now', 'localtime'))
           ) STRICT;
 
           CREATE INDEX IF NOT EXISTS bans_ips ON bans (ip);
@@ -70,6 +70,12 @@ class Bandit
         super
         db.execute <<~SQL, [ip, 1]
           INSERT INTO bans (ip, allowed) VALUES (?, ?) ON CONFLICT DO NOTHING
+
+          ON CONFLICT DO UPDATE SET
+            allowed    = 1,
+            unban_at   = NULL,
+            count      = 0,
+            updated_at = datetime('now', 'localtime')
         SQL
       end
 
@@ -78,14 +84,14 @@ class Bandit
           INSERT INTO bans (ip, count, unban_at, updated_at)
             VALUES (?,
                     1,
-                    datetime("now", format("+%d hours", 1), "localtime"),
-                    datetime("now", "localtime"))
+                    datetime('now', format('+%d hours', 1), 'localtime'),
+                    datetime('now', 'localtime'))
 
           ON CONFLICT DO UPDATE SET
-            unban_at = datetime("now", format("+%d hours", power(2, min(count, 15))), "localtime"),
-            count = count + 1,
-            updated_at = datetime("now", "localtime")
-            WHERE allowed != 1 AND julianday("now", "localtime") - julianday(updated_at) > 1
+            unban_at   = datetime('now', format('+%d hours', power(2, min(count, 15))), 'localtime'),
+            count      = count + 1,
+            updated_at = datetime('now', 'localtime')
+            WHERE allowed != 1 AND julianday('now', 'localtime') - julianday(updated_at) > 1
 
           RETURNING count, unban_at
         SQL
@@ -99,7 +105,7 @@ class Bandit
       def unban ip
         ban, = db.execute <<~SQL, [ip]
           UPDATE bans
-          SET unban_at = NULL, updated_at = datetime("now", "localtime")
+          SET unban_at = NULL, updated_at = datetime('now', 'localtime')
           WHERE ip = ?
           RETURNING *
         SQL
@@ -114,7 +120,7 @@ class Bandit
           SELECT ip FROM bans
           WHERE NOT allowed
             AND unban_at
-            AND julianday(unban_at, "localtime") < julianday("now", "localtime")
+            AND julianday(unban_at) < julianday('now', 'localtime')
         SQL
       end
 
@@ -123,7 +129,7 @@ class Bandit
         db.execute(<<~SQL, stale.to_s).flat_map(&:values)
           DELETE FROM bans
           WHERE NOT allowed
-            AND julianday(updated_at) < julianday(?, "localtime")
+            AND julianday(updated_at) < julianday(?, 'localtime')
           RETURNING *
         SQL
       end
