@@ -5,8 +5,11 @@ Rakefile
 bandit.db
 bandit.rb
 bin/bandit
+ingress.rb
+jails/apache.rb
+jails/mail.rb
+lib/bandit.rb
 lib/bandit/fw.rb
 lib/bandit/store.rb
 lib/bandit/time_exts.rb
-lib/bandit.rb
 test/test_bandit.rb

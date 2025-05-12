@@ -7,17 +7,39 @@ rdoc :: https://docs.seattlerb.org/bandit
 
 FIX (describe your package)
 
+# ingress:
+#
+# * tail -F a bunch of logs and pipe to this
+# * ARGF.each_line + case
+# * hardcode regexps for now, generalize later
+# * goes straight to ban
+# * DO NOT: run maintenance or any other process, ingress _only_
+#
+# eg:
+#
+#   tail -F /var/log/mail.log | rg <pre-filter-pattern>? | ./ingress.rb
+
 == FEATURES/PROBLEMS:
 
 * FIX (list of features or problems)
 
 == SYNOPSIS:
 
-  FIX (code sample of usage)
+  bandit        = Bandit.new
+  bandit.logger = Logger.new($stderr, progname: "bandit") if $v
+  bandit.store  = Bandit::Store::SQLiteDB.new bandit.logger
+  bandit.fw     = Bandit::FW::IpSet.new bandit.logger
+
+  bandit.start
+
+  Bandit.load_jail :mail
+  Bandit.load_jail :apache
+
+  bandit.ingress ARGF
 
 == REQUIREMENTS:
 
-* FIX (list of requirements)
+* sqlite3
 
 == INSTALL:
 
