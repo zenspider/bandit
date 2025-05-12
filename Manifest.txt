@@ -4,6 +4,7 @@ README.rdoc
 Rakefile
 bandit.db
 bin/bandit
+ingress.rb
 jails/apache404.rb
 jails/dovecot.rb
 jails/mail.rb
