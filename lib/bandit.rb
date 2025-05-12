@@ -11,6 +11,8 @@ class Bandit
   DAY        = 24 * HOUR
   STALE_TIME = 28 * DAY
 
+  HOST_IP = /(?<host_ip>\d+\.\d+\.\d+\.\d+)/
+
   attr_accessor :fw
   attr_accessor :store
   attr_accessor :logger
@@ -21,6 +23,11 @@ class Bandit
       .sort
       .map(&:to_s)
   end
+
+  def self.jails               = @jails ||= {}
+  def self.add_jail(n, p, *rs) = jails[n] = [p, *rs]
+  def self.jail_regexps        = jails.values.to_h { |a| [a.first, a.drop(1)] }
+  def self.load_jail(name)     = instance_eval File.read "jails/#{name}.rb"
 
   def self.cmd(name) = alias_method "cmd_#{name}", name
 
@@ -59,5 +66,57 @@ class Bandit
 
   cmd def export
     puts store.active.map { |ip| "add bandit %s" % [ip] }
+  end
+
+  def start
+    fw.start store.active
+
+    t = Thread.new do
+      loop do
+        sleep 10
+        update
+      end
+    end
+
+    at_exit { t.kill }
+  end
+
+  def jail_regexps = self.class.jail_regexps
+
+  def ingress io
+    stats = Hash.new 0
+
+    regexps = jail_regexps
+    pre_res = regexps.keys
+
+    regexps.values.flatten.each do |re| stats[re] = 0 end
+
+    io.each_line do |line|
+      stats[:line] += 1
+
+      line.chomp!
+
+      case line
+      when *pre_res then
+        md = Regexp.last_match
+
+        content_res = regexps[md.regexp]
+        content = md[:content]
+
+        case content
+        when *content_res then
+          md = Regexp.last_match
+          stats[md.regexp] += 1
+          stats[:ban] += 1
+
+          ip = md[:host_ip]
+          self.ban ip
+        end
+      else
+        stats[:miss] += 1
+      end
+    end
+
+    stats
   end
 end
