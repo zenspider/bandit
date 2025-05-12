@@ -14,7 +14,7 @@
 #   ban  : <ip> n+1 2025-06-01 false now
 #   unban: <ip> n   NULL       false now
 
-# count = ban: 2**n = 1 2 4 8 16 32 64 128 ... hours? days?
+# count = ban: 2**n = 1 2 4 8 16 32 64 128 ... hours
 
 class Bandit
   module Store
@@ -27,6 +27,7 @@ class Bandit
       def expired   = raise NotImplementedError, "#{__method__} not implemented"
       def purge     = raise NotImplementedError, "#{__method__} not implemented"
       def dump      = raise NotImplementedError, "#{__method__} not implemented"
+      def active    = raise NotImplementedError, "#{__method__} not implemented"
     end
 
     class Logger < Abstract
@@ -41,6 +42,7 @@ class Bandit
       def expired   = (log "%s"  , __method__.upcase; [])
       def purge     = log "%s"   , __method__.upcase
       def dump      = log "%s"   , __method__.upcase
+      def active    = (log "%s"   , __method__.upcase; [])
     end
 
     require "sqlite3"
@@ -144,6 +146,16 @@ class Bandit
             puts row.values.map { |v| v.nil? ? "NULL\t\t" : v }.join "\t"
           end
         end
+      end
+
+      def active
+        db.execute(<<~SQL).map { |h| h["ip"] }
+          SELECT ip FROM bans
+          WHERE allowed != 1
+            AND unban_at
+            AND julianday(unban_at) > julianday('now', 'localtime')
+          ORDER BY ip ASC
+        SQL
       end
     end
   end

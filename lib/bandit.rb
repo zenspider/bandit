@@ -56,4 +56,8 @@ class Bandit
   cmd def dump
     store.dump
   end
+
+  cmd def export
+    puts store.active.map { |ip| "add bandit %s" % [ip] }
+  end
 end
