@@ -11,6 +11,8 @@ Hoe.spec "bandit" do
   developer "Ryan Davis", "ryand-ruby@zenspider.com"
 
   license "MIT"
+
+  dependency "sqlite3", "~> 2.6"
 end
 
 # vim: syntax=ruby
