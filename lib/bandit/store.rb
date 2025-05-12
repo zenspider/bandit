@@ -48,9 +48,9 @@ class Bandit
     require "sqlite3"
     class SQLiteDB < Logger
       attr_accessor :db
-      def initialize logger
-        super
-        self.db = SQLite3::Database.new "bandit.db", strict: true
+      def initialize logger, path: "bandit.db"
+        super(logger)
+        self.db = SQLite3::Database.new path, strict: true
         db.busy_timeout = 1_500 # ms
         db.results_as_hash = true
 
