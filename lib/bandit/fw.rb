@@ -20,7 +20,7 @@ class Bandit
 
     class IpSet < Logger
       def _restore(&b)
-        IO.popen "ipset restore", "w", &b
+        IO.popen "ipset restore -exist", "w", &b
       end
 
       def ban ip

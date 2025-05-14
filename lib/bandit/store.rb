@@ -28,6 +28,7 @@ class Bandit
       def purge     = raise NotImplementedError, "#{__method__} not implemented"
       def dump      = raise NotImplementedError, "#{__method__} not implemented"
       def active    = raise NotImplementedError, "#{__method__} not implemented"
+      def next_unban = raise NotImplementedError, "#{__method__} not implemented"
     end
 
     class Logger < Abstract
@@ -43,6 +44,7 @@ class Bandit
       def purge     = log "%s"   , __method__.upcase
       def dump      = log "%s"   , __method__.upcase
       def active    = (log "%s"   , __method__.upcase; [])
+      def next_unban = 3660 # 1 hr 1 min
     end
 
     require "sqlite3"
@@ -155,6 +157,16 @@ class Bandit
             AND unban_at
             AND julianday(unban_at) > julianday('now', 'localtime')
           ORDER BY ip ASC
+        SQL
+      end
+
+      def next_unban
+        db.execute(<<~SQL).first["t"]
+          SELECT 86400.0 * (julianday(unban_at) - julianday('now', 'localtime')) AS t
+          FROM bans
+          WHERE unban_at NOT NULL and NOT allowed
+          ORDER BY unban_at
+          LIMIT 1
         SQL
       end
     end

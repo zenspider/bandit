@@ -53,6 +53,7 @@ class Bandit
   end
 
   cmd def update # run every hour? minute?
+    logger.info "running updater"
     store.expired.each do |ban|
       unban ban
     end
@@ -71,14 +72,18 @@ class Bandit
   def start
     fw.start store.active
 
-    t = Thread.new do
+    updater = Thread.new do
       loop do
-        sleep 10
+        t = store.next_unban.clamp(0, 3600)
+        if t > 0 then
+          logger.info "updater sleeping for %.2f seconds" % [t]
+          sleep t
+        end
         update
       end
     end
 
-    at_exit { t.kill }
+    at_exit { updater.kill }
   end
 
   def jail_regexps = self.class.jail_regexps
@@ -117,6 +122,9 @@ class Bandit
       end
     end
 
+    stats
+  rescue Interrupt
+    warn "killed"
     stats
   end
 end
