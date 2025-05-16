@@ -161,7 +161,7 @@ class Bandit
       end
 
       def next_unban
-        db.execute(<<~SQL).first["t"]
+        db.get_first_value(<<~SQL)
           SELECT 86400.0 * (julianday(unban_at) - julianday('now', 'localtime')) AS t
           FROM bans
           WHERE unban_at NOT NULL and NOT allowed

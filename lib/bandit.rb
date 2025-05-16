@@ -74,7 +74,7 @@ class Bandit
 
     updater = Thread.new do
       loop do
-        t = store.next_unban.clamp(0, 3600)
+        t = (store.next_unban || HOUR).clamp(0, 300)
         if t > 0 then
           logger.info "updater sleeping for %.2f seconds" % [t]
           sleep t
