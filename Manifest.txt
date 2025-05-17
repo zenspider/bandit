@@ -4,6 +4,7 @@ README.rdoc
 Rakefile
 bandit.db
 bin/bandit
+jails/apache404.rb
 lib/bandit.rb
 lib/bandit/fw.rb
 lib/bandit/store.rb
