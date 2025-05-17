@@ -6,6 +6,7 @@ bin/bandit
 jails/apache404.rb
 jails/dovecot.rb
 jails/mail.rb
+jails/sshd.rb
 lib/bandit.rb
 lib/bandit/fw.rb
 lib/bandit/store.rb
