@@ -16,6 +16,7 @@ bandit.start
 
 Bandit.load_jail :mail
 Bandit.load_jail :apache
+Bandit.load_jail :sshd
 
 t0 = Time.now
 stats = bandit.ingress ARGF
