@@ -256,10 +256,18 @@ class Bandit
 
       def next_unban
         db.get_first_value(<<~SQL)
-          SELECT 86400.0 * (julianday(unban_at) - julianday('now', 'localtime')) AS t
-          FROM bans
-          WHERE unban_at NOT NULL and NOT allowed
-          ORDER BY unban_at
+          SELECT
+            86400.0 * (julianday(unban_at) - julianday('now', 'localtime')) AS t
+            FROM bans
+            WHERE unban_at NOT NULL AND NOT allowed
+          UNION
+          SELECT
+            86400.0 * (
+              julianday(updated_at, format('+%d days', 7 * (4 + count - 1))) -
+              julianday('now', 'localtime')) AS t
+            FROM bans
+            WHERE NOT allowed
+          ORDER BY t
           LIMIT 1
         SQL
       end

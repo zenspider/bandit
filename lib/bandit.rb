@@ -10,8 +10,7 @@ require "syslog/logger"
 class Bandit
   # :stopdoc:
   VERSION = "1.0.0"
-  HOUR       = 3_600
-  DAY        = 24 * HOUR
+  FIVE_MIN = 300
   # :startdoc:
 
   # A regexp to match IP addresses, to be used in recipes.
@@ -166,7 +165,7 @@ class Bandit
 
     updater = Thread.new do
       loop do
-        t = (store.next_unban || HOUR).clamp(0, 300)
+        t = (store.next_unban || FIVE_MIN).clamp(0, FIVE_MIN)
         if t > 0 then
           logger.debug "updater sleeping for %.2f seconds" % [t]
           sleep t

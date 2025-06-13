@@ -28,6 +28,37 @@ class TestBandit < Minitest::Test
     end
   end
 
+  def test_next_unban__ban
+    bandit.ban "1.2.3.4", "sanity"
+
+    assert_in_epsilon 3600, bandit.store.next_unban
+  end
+
+  def test_next_unban__purge
+    bandit.store.db.execute_batch <<~SQL
+      DELETE FROM bans;
+      INSERT INTO bans(ip, jail, count, updated_at, created_at)
+           VALUES ('1.2.3.4', 'sanity', 1,
+                   datetime('now', '-28 days', 'localtime'),
+                   datetime('now', '-28 days', '-1 hour', 'localtime'));
+    SQL
+
+    assert_operator bandit.store.next_unban, :<, 0
+  end
+
+  def test_next_unban__both
+    bandit.store.db.execute_batch <<~SQL
+      DELETE FROM bans;
+      INSERT INTO bans(ip, jail, count, updated_at, created_at)
+           VALUES ('1.2.3.4', 'sanity', 1,
+                   datetime('now', '-28 days', 'localtime'),
+                   datetime('now', '-28 days', '-1 hour', 'localtime'));
+    SQL
+    bandit.ban "1.2.3.5", "sanity"
+
+    assert_operator bandit.store.next_unban, :<, 0
+  end
+
   def test_ban
     bandit.ban "1.2.3.4", "sanity"
 
