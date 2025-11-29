@@ -36,9 +36,9 @@ class TestBandit < Minitest::Test
   def test_active
     db.execute_batch <<~SQL
       INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', '+1 hour', 'localtime'));
+           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', '+1 hour'));
       INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.6', 'sanity', 1, datetime('now', '-1 hour', 'localtime'));
+           VALUES ('1.2.3.6', 'sanity', 1, datetime('now', '-1 hour'));
     SQL
     store.allow IP.succ
 
@@ -67,9 +67,9 @@ class TestBandit < Minitest::Test
 
     data = bans.first
 
-    tC = Time.strptime data["created_at"], "%F %T"
-    tU = Time.strptime data["updated_at"], "%F %T"
-    tB = Time.strptime data["unban_at"],   "%F %T"
+    tC = Time.strptime data["created_at"]+?Z, "%F %T%Z"
+    tU = Time.strptime data["updated_at"]+?Z, "%F %T%Z"
+    tB = Time.strptime data["unban_at"]+?Z,   "%F %T%Z"
 
     assert_equal IP, data["ip"]
     assert_equal "sanity",  data["jail"]
@@ -91,9 +91,9 @@ class TestBandit < Minitest::Test
 
     data = bans.first
 
-    tC = Time.strptime data["created_at"], "%F %T"
-    tU = Time.strptime data["updated_at"], "%F %T"
-    tB = Time.strptime data["unban_at"],   "%F %T"
+    tC = Time.strptime data["created_at"]+?Z, "%F %T%Z"
+    tU = Time.strptime data["updated_at"]+?Z, "%F %T%Z"
+    tB = Time.strptime data["unban_at"]+?Z,   "%F %T%Z"
 
     assert_equal IP, data["ip"]
     assert_equal "sanity",  data["jail"]
@@ -115,9 +115,9 @@ class TestBandit < Minitest::Test
   def test_expired
     db.execute_batch <<~SQL
       INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', '-1 hour', 'localtime'));
+           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', '-1 hour'));
       INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.5', 'sanity', 1, datetime('now', '+1 hour', 'localtime'));
+           VALUES ('1.2.3.5', 'sanity', 1, datetime('now', '+1 hour'));
     SQL
 
     assert_equal [IP], store.expired
@@ -137,8 +137,8 @@ class TestBandit < Minitest::Test
     db.execute_batch <<~SQL
       INSERT INTO bans(ip, jail, count, updated_at, created_at)
            VALUES ('1.2.3.4', 'sanity', 1,
-                   datetime('now', '-28 days', 'localtime'),
-                   datetime('now', '-28 days', '-1 hour', 'localtime'));
+                   datetime('now', '-28 days'),
+                   datetime('now', '-28 days', '-1 hour'));
     SQL
 
     assert_operator store.next_unban, :<, 0
@@ -148,8 +148,8 @@ class TestBandit < Minitest::Test
     db.execute_batch <<~SQL
       INSERT INTO bans(ip, jail, count, updated_at, created_at)
            VALUES ('1.2.3.4', 'sanity', 1,
-                   datetime('now', '-28 days', 'localtime'),
-                   datetime('now', '-28 days', '-1 hour', 'localtime'));
+                   datetime('now', '-28 days'),
+                   datetime('now', '-28 days', '-1 hour'));
     SQL
     bandit.ban IP.succ, "sanity"
 
@@ -190,7 +190,7 @@ class TestBandit < Minitest::Test
   def create_one_ban
     db.execute_batch <<~SQL
       INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', 'localtime'));
+           VALUES ('1.2.3.4', 'sanity', 1, datetime('now'));
     SQL
   end
 end
