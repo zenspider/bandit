@@ -36,11 +36,10 @@ class TestBandit < Minitest::Test
   def test_active
     db.execute_batch <<~SQL
       INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', '+1 hour'));
-      INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.6', 'sanity', 1, datetime('now', '-1 hour'));
+           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', '+1 hour')),
+                  ('1.2.3.6', 'sanity', 1, datetime('now', '-1 hour'));
     SQL
-    store.allow IP.succ
+    bandit.allow IP.succ
 
     assert_equal [IP], store.active
   end
@@ -50,20 +49,34 @@ class TestBandit < Minitest::Test
   end
 
   def test_allow
-    store.allow IP
+    bandit.allow IP
 
     assert_empty store.active
+
+    assert_log "bandit: DB ALLOW ip=1.2.3.4"
 
     ips = db.execute("SELECT ip FROM bans WHERE allowed").flat_map(&:values)
     assert_equal [IP], ips
   end
 
+  def test_allow__multi
+    bandit.allow IP, IP.succ
+
+    assert_empty store.active
+
+    assert_log "bandit: DB ALLOW ip=1.2.3.4"
+    assert_log "bandit: DB ALLOW ip=1.2.3.5"
+
+    ips = db.execute("SELECT ip FROM bans WHERE allowed").flat_map(&:values)
+    assert_equal [IP, IP.succ], ips
+  end
+
   def test_ban
     bandit.ban IP, "sanity"
 
-    assert_includes io.string, "bandit: DB BAN ip=1.2.3.4 jail=sanity count=1"
-    assert_includes io.string, "bandit: FW BAN ip=1.2.3.4 jail=sanity"
-    assert_includes io.string, "add bandit 1.2.3.4"
+    assert_log "bandit: DB BAN ip=1.2.3.4 jail=sanity count=1"
+    assert_log "bandit: FW BAN ip=1.2.3.4 jail=sanity"
+    assert_log "add bandit 1.2.3.4"
 
     data = bans.first
 
@@ -71,7 +84,7 @@ class TestBandit < Minitest::Test
     tU = Time.strptime data["updated_at"]+?Z, "%F %T%Z"
     tB = Time.strptime data["unban_at"]+?Z,   "%F %T%Z"
 
-    assert_equal IP, data["ip"]
+    assert_equal IP,        data["ip"]
     assert_equal "sanity",  data["jail"]
     assert_equal 0,         data["allowed"]
     assert_equal 1,         data["count"]
@@ -85,9 +98,9 @@ class TestBandit < Minitest::Test
 
     bandit.ban IP, "sanity"
 
-    assert_includes io.string, "bandit: DB BAN ip=1.2.3.4 jail=sanity count=1"
-    assert_includes io.string, "bandit: FW BAN ip=1.2.3.4 jail=sanity"
-    assert_includes io.string, "add bandit 1.2.3.4"
+    assert_log "bandit: DB BAN ip=1.2.3.4 jail=sanity count=1"
+    assert_log "bandit: FW BAN ip=1.2.3.4 jail=sanity"
+    assert_log "add bandit 1.2.3.4"
 
     data = bans.first
 
@@ -95,7 +108,7 @@ class TestBandit < Minitest::Test
     tU = Time.strptime data["updated_at"]+?Z, "%F %T%Z"
     tB = Time.strptime data["unban_at"]+?Z,   "%F %T%Z"
 
-    assert_equal IP, data["ip"]
+    assert_equal IP,        data["ip"]
     assert_equal "sanity",  data["jail"]
     assert_equal 0,         data["allowed"]
     assert_equal 1,         data["count"]
@@ -115,9 +128,8 @@ class TestBandit < Minitest::Test
   def test_expired
     db.execute_batch <<~SQL
       INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', '-1 hour'));
-      INSERT INTO bans(ip, jail, count, unban_at)
-           VALUES ('1.2.3.5', 'sanity', 1, datetime('now', '+1 hour'));
+           VALUES ('1.2.3.4', 'sanity', 1, datetime('now', '-1 hour')),
+                  ('1.2.3.5', 'sanity', 1, datetime('now', '+1 hour'));
     SQL
 
     assert_equal [IP], store.expired
@@ -162,7 +174,27 @@ class TestBandit < Minitest::Test
   def test_rm
     create_one_ban
 
-    store.rm  IP
+    bandit.rm  IP
+
+    assert_log "bandit: DB RM ip=1.2.3.4"
+    assert_log "bandit: FW UNBAN ip=1.2.3.4"
+    assert_log "del bandit 1.2.3.4"
+
+    assert_empty bans
+  end
+
+  def test_rm__multi
+    create_two_bans
+
+    bandit.rm IP, IP.succ
+
+    assert_log "bandit: DB RM ip=1.2.3.4"
+    assert_log "bandit: FW UNBAN ip=1.2.3.4"
+    assert_log "del bandit 1.2.3.4"
+
+    assert_log "bandit: DB RM ip=1.2.3.5"
+    assert_log "bandit: FW UNBAN ip=1.2.3.5"
+    assert_log "del bandit 1.2.3.5"
 
     assert_empty bans
   end
@@ -172,9 +204,31 @@ class TestBandit < Minitest::Test
 
     bandit.unban IP
 
-    assert_includes io.string, "bandit: DB UNBAN ip=1.2.3.4"
-    assert_includes io.string, "bandit: FW UNBAN ip=1.2.3.4"
-    assert_includes io.string, "del bandit 1.2.3.4"
+    assert_log "bandit: DB UNBAN ip=1.2.3.4"
+    assert_log "bandit: FW UNBAN ip=1.2.3.4"
+    assert_log "del bandit 1.2.3.4"
+
+    data = bans.first
+
+    assert_equal IP,       data["ip"]
+    assert_equal "sanity", data["jail"]
+    assert_equal 0,        data["allowed"]
+    assert_equal 1,        data["count"]
+    assert_nil             data["unban_at"]
+  end
+
+  def test_unban__multi
+    create_two_bans
+
+    bandit.unban IP, IP.succ
+
+    assert_log "bandit: DB UNBAN ip=1.2.3.4"
+    assert_log "bandit: FW UNBAN ip=1.2.3.4"
+    assert_log "del bandit 1.2.3.4"
+
+    assert_log "bandit: DB UNBAN ip=1.2.3.5"
+    assert_log "bandit: FW UNBAN ip=1.2.3.5"
+    assert_log "del bandit 1.2.3.5"
 
     data = bans.first
 
@@ -187,10 +241,20 @@ class TestBandit < Minitest::Test
 
   def bans = db.execute "SELECT * FROM bans"
 
+  def assert_log(str) = assert_includes io.string, str
+
   def create_one_ban
     db.execute_batch <<~SQL
       INSERT INTO bans(ip, jail, count, unban_at)
            VALUES ('1.2.3.4', 'sanity', 1, datetime('now'));
+    SQL
+  end
+
+  def create_two_bans
+    db.execute_batch <<~SQL
+      INSERT INTO bans(ip, jail, count, unban_at)
+           VALUES ('1.2.3.4', 'sanity', 1, datetime('now')),
+                  ('1.2.3.5', 'sanity', 1, datetime('now'));
     SQL
   end
 end

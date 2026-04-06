@@ -88,6 +88,18 @@ class Bandit
 
   def self.cmd(name) = alias_method "cmd_#{name}", name # :nodoc:
 
+  def self.multi name
+    raise "NO: #{name}" unless instance_method(name).arity == 1
+
+    alias_method "#{name}_one", name # :nodoc:
+
+    define_method name do |*args|
+      args.each do |arg|
+        send "#{name}_one", arg
+      end
+    end
+  end
+
   def initialize logger = Syslog::Logger.new("bandit") # :nodoc:
     self.logger  = logger
     self.fw      = FW::Null.new logger
@@ -100,7 +112,7 @@ class Bandit
   def allow ip
     store.allow ip
   end
-  cmd :allow
+  cmd multi :allow
 
   ##
   # Unban an IP. Removes IP from the firewall and tells the database
@@ -110,7 +122,7 @@ class Bandit
     fw.unban ip
     store.unban ip
   end
-  cmd :unban
+  cmd multi :unban
 
   ##
   # Remove an IP. Removes IP from the firewall and deletes the entry
@@ -120,7 +132,7 @@ class Bandit
     fw.unban ip
     store.rm ip
   end
-  cmd :rm
+  cmd multi :rm
 
   ##
   # Ban an IP. Adds IP to the firewall and the database.
